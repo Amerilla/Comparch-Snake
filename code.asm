@@ -18,6 +18,7 @@
 .equ    SEVEN_SEGS,     0x1198  ; 7-segment display addresses
 .equ    RANDOM_NUM,     0x2010  ; Random number generator address
 .equ    BUTTONS,        0x2030  ; Buttons addresses
+.equ 	EDGE_CAPTURE, 	0x2034 ; edgecapture
 
 ; button state
 .equ    BUTTON_NONE,    0
@@ -146,7 +147,29 @@ hit_test:
 
 ; BEGIN: get_input
 get_input:
+	ldw t0, EDGE_CAPTURE(zero)
+	addi t1, zero, 1    ; Constant
+	addi t4, zero, BUTTON_CHECKPOINT 
+	add t3, zero, zero
+	
+	shift:
+		and t2, t0, t1
+		bne t2, zero, then_get_input
+		srl t0, t0, t1
+		addi t3, t3, 1
+		bge t3, t4, all_empty
+		jmpi shift
 
+	all_empty:
+		addi v0, zero, 0
+		stw zero, EDGE_CAPTURE(zero)
+		ret
+
+	then_get_input:
+		addi t0, zero, 1
+		sll v0, t0, t3
+		stw zero, EDGE_CAPTURE(zero)
+		ret
 ; END: get_input
 
 
