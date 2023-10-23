@@ -60,13 +60,63 @@ main:
 
 ; BEGIN: clear_leds
 clear_leds:
+	addi t0, zero, LEDS
 
+	stw zero, LEDS(zero)
+	stw zero, 4(t0)
+	stw zero, 8(t0)
+
+	ret
 ; END: clear_leds
 
 
 ; BEGIN: set_pixel
 set_pixel:
+	addi t0, zero, 4
+    addi t1, zero, 8
+    blt a0, t0, led0
+    blt a0, t1, led1
+    br led2
+    
+    led0:
+        addi t4, zero, 0   ; Led array index
+        ldw t5, LEDS(t4)    ; Led array
+        add t7, zero, a0   ; Pixel relative row number
+        br rows
+    led1:
+        addi t4, zero, 4
+        ldw t5, LEDS(t4)
+        addi t7, a0, -4
+        br rows
+    led2:
+        addi t4, zero, 8
+        ldw t5, LEDS(t4)
+        addi t7, a0, -8
 
+    rows:
+        addi t0, zero, 1
+        addi t1, zero, 2
+        add t6, zero, a1    ; Pixel number
+        beq t7, zero, done_setpixel
+        beq t7, t0, row1
+        beq t7, t1, row2
+        br row3
+    
+    row1:
+        addi t6, t6, 8
+        br done_setpixel
+    row2:
+        addi t6, t6, 16
+        br done_setpixel
+    row3:
+        addi t6, t6, 24
+    done_setpixel:
+        addi t7, zero, 1
+        sll t7, t7, t6
+        or t7, t7, t5
+        stw t7, LEDS(t4)
+
+    ret
 ; END: set_pixel
 
 
