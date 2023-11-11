@@ -61,12 +61,15 @@ main:
 	br move_loop_test
 
 	move_loop_test:
-		stw zero, HEAD_X(zero)
+		addi t1, zero, 1
+		stw t1, HEAD_X(zero)
 		stw zero, HEAD_Y(zero)
 		stw zero, TAIL_X(zero)
 		stw zero, TAIL_Y(zero)		
 		addi t0, zero, 4
 		stw t0, GSA(zero)
+		addi t0, zero, 4
+		stw t0, GSA(t0)
 
 		move_loop:
 			
