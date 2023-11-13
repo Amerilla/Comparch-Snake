@@ -68,7 +68,7 @@ main:
 		addi t0, zero, 4
 		stw t0, GSA(zero)
 
-		move_loop:
+	move_loop:
 			
 			call clear_leds
 			call get_input
@@ -96,8 +96,9 @@ main:
 		addi t1, zero, 48
 		stw t0, GSA(t1)
 		call draw_array
+		call hit_test
 		ret
-	
+
 	move_snake_test:
 		addi t0, zero, 4
 		addi t1, zero, 	108  ; (3,2) = 4*(3 + 2*12) = 108
@@ -219,6 +220,92 @@ create_food:
 
 ; BEGIN: hit_test
 hit_test:
+	addi t3, zero, -1
+	addi t7, zero, DIR_LEFT
+	addi t6, zero, DIR_RIGHT
+	addi t5, zero, DIR_UP
+	addi t4, zero, DIR_DOWN
+	
+	ldw t0, HEAD_X(zero)
+	ldw t1, HEAD_Y(zero)
+	add t2, t1, t1
+	add t2, t2, t1
+	slli t2, t2, 2
+	add t2, t2, t0
+	slli t2, t2,2 
+	ldw t2, GSA(t2)
+	
+	beq t2, t7, left
+	beq t2, t6, right
+	beq t2, t5, up
+	beq t2, t4, down
+
+left:
+	addi t0, t0, -1
+	beq t3, t0, wall
+	
+	add t2, t1, t1
+	add t2, t2, t1
+	slli t2, t2, 2
+	add t2, t2, t0
+	slli t2, t2,2 
+	ldw t2, GSA(t2)	;getting the gsa of the new pos, NEXT: Testing
+	jmpi testing	
+
+right:
+	addi t0, t0, 1
+	addi t3, zero, 12  ;right limit
+	beq t3, t0, wall
+	
+	add t2, t1, t1
+	add t2, t2, t1
+	slli t2, t2, 2
+	add t2, t2, t0
+	slli t2, t2,2 
+	ldw t2, GSA(t2)
+	jmpi testing
+
+up:
+	addi t1, t1, -1
+	beq t3, t1, wall
+	
+	add t2, t1, t1
+	add t2, t2, t1
+	slli t2, t2, 2
+	add t2, t2, t0
+	slli t2, t2,2 
+	ldw t2, GSA(t2) 
+	jmpi testing
+	
+down:
+	addi t1, t1, 1
+	addi t3, zero, 8 ;down limit 
+	beq t3, t1, wall
+	
+	add t2, t1, t1
+	add t2, t2, t1
+	slli t2, t2, 2
+	add t2, t2, t0
+	slli t2, t2,2 
+	ldw t2, GSA(t2) 
+	
+testing:
+	addi t3, zero, FOOD
+
+	beq t2, t7, wall
+	beq t2, t6, wall
+	beq t2, t5, wall
+	beq t2, t4, wall
+	beq t2, t3, food
+	
+	add v0, zero, zero	;do nothing
+	ret
+
+wall: addi v0, zero, 2
+	ret
+
+food: addi v0, zero, 1
+	ret
 
 ; END: hit_test
 
