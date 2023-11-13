@@ -55,7 +55,11 @@ addi    sp, zero, STACK_BOTTOM
 ; return values
 ;     This procedure should never return.
 main:
-    ; TODO: Finish this procedure.
+	stw zero, CP_VALID(zero)
+	
+;_________________________________
+ 	;ACTUAL MAIN PROCEDURE WRITTEN ABOVE! DO NOT ERASE!
+   ; TODO: Finish this procedure.
 	;call clear_leds
 
 	br move_loop_test
@@ -250,7 +254,7 @@ left:
 	add t2, t2, t0
 	slli t2, t2,2 
 	ldw t2, GSA(t2)	;getting the gsa of the new pos, NEXT: Testing
-	jmpi testing	
+	br testing	
 
 right:
 	addi t0, t0, 1
@@ -263,7 +267,7 @@ right:
 	add t2, t2, t0
 	slli t2, t2,2 
 	ldw t2, GSA(t2)
-	jmpi testing
+	br testing
 
 up:
 	addi t1, t1, -1
@@ -275,7 +279,7 @@ up:
 	add t2, t2, t0
 	slli t2, t2,2 
 	ldw t2, GSA(t2) 
-	jmpi testing
+	br testing
 	
 down:
 	addi t1, t1, 1
@@ -301,10 +305,10 @@ testing:
 	add v0, zero, zero	;do nothing
 	ret
 
-wall: addi v0, zero, 2
+wall: addi v0, zero, RET_COLLISION
 	ret
 
-food: addi v0, zero, 1
+food: addi v0, zero, RET_ATE_FOOD
 	ret
 
 ; END: hit_test
@@ -529,13 +533,59 @@ move_snake:
 
 ; BEGIN: save_checkpoint
 save_checkpoint:
+	addi t7, zero, HEAD_X ;needs to go from here to 
+	addi t6, zero, SEVEN_SEGS ;stop when this address strikes
+	addi t5, zero, CP_HEAD_X
+	addi t4, zero, RET_ATE_FOOD ;t4 = 1 
+	 
+	ldw t0, SCORE(zero)
+ 	addi t1, zero, 10
+	bge t0, zero, next
+	ret
+
+next:
+	beq t0, zero, incr
+	blt t0, zero, end
+	addi t0, t0, -10
+	br next
+
+incr: 
+	ldw t2, 0(t7)
+	stw t2, 0(t5)
+	addi t7, t7, 4
+	addi t5, t5, 4 
+	bne t7, t6, incr
+	stw t4,CP_VALID(zero)
+	add v0, zero, t4
+	ret 
+
+end: add v0, zero, zero
+	ret
 
 ; END: save_checkpoint
 
 
 ; BEGIN: restore_checkpoint
 restore_checkpoint:
+	addi t7, zero, HEAD_X ;needs to go from here to 
+	addi t6, zero, SEVEN_SEGS ;stop when this address strikes
+	addi t5, zero, CP_HEAD_X
+	addi t4, zero, RET_ATE_FOOD ;t4 = 1 
 
+	ldw t0, CP_VALID(zero)
+	beq t0, t4, restore
+	add v0, zero, zero
+	ret
+
+restore: 
+	ldw t1, 0(t5)
+	stw t1, 0(t7)
+	addi t7, t7, 4
+	addi t5, t5, 4 
+	bne t7, t6, restore
+	add v0, zero, t4
+	ret
+	
 ; END: restore_checkpoint
 
 
