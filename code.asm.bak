@@ -58,18 +58,19 @@ main:
     ; TODO: Finish this procedure.
 	;call clear_leds
 
+	ldw t0, RANDOM_NUM(zero)
+	ldw t1, RANDOM_NUM(zero)
+	ldw t2, RANDOM_NUM(zero)
+
 	br move_loop_test
 
 	move_loop_test:
-		addi t1, zero, 1
-		stw t1, HEAD_X(zero)
+		stw zero, HEAD_X(zero)
 		stw zero, HEAD_Y(zero)
 		stw zero, TAIL_X(zero)
 		stw zero, TAIL_Y(zero)		
 		addi t0, zero, 4
 		stw t0, GSA(zero)
-		addi t0, zero, 4
-		stw t0, GSA(t0)
 
 		move_loop:
 			
@@ -216,7 +217,18 @@ init_game:
 
 ; BEGIN: create_food
 create_food:
+	addi sp, sp, -4
+	stw ra, 0(sp)
 
+
+	foo
+		ldw t7, RANDOM_NUM(zero)
+		addi t0, zero, 1111111    ; Used to select only the first 128 numbers
+		addi t1, zero, 96        ; First invalid number (i.e not on LED screen)
+	
+
+	ldw ra, 0(sp)
+	addi sp, sp, 4
 ; END: create_food
 
 
@@ -437,8 +449,6 @@ move_snake:
 		ldw ra, 0(sp)
 		addi sp, sp, 4
 		ret
-
-	
 
 ; END: move_snake
 

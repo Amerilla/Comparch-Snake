@@ -58,6 +58,10 @@ main:
     ; TODO: Finish this procedure.
 	;call clear_leds
 
+	ldw t0, RANDOM_NUM(zero)
+	ldw t1, RANDOM_NUM(zero)
+	ldw t2, RANDOM_NUM(zero)
+
 	br move_loop_test
 
 	move_loop_test:
@@ -76,58 +80,9 @@ main:
 			call draw_array
 			br move_loop
 
-	draw_array_test:
-		addi t0, zero, 3
-		addi t1, zero, 0
-		stw t0, GSA(t1)
-		addi t0, zero, 2
-		addi t1, zero, 4
-		stw t0, GSA(t1)
-		addi t0, zero, 0
-		addi t1, zero, 8
-		stw t0, GSA(t1)
-		addi t0, zero, 4
-		addi t1, zero, 12
-		stw t0, GSA(t1)
-		addi t0, zero, 5
-		addi t1, zero, 16
-		stw t0, GSA(t1)
-		addi t0, zero, 3
-		addi t1, zero, 48
-		stw t0, GSA(t1)
-		call draw_array
-		ret
 	
-	move_snake_test:
-		addi t0, zero, 4
-		addi t1, zero, 	108  ; (3,2) = 4*(3 + 2*12) = 108
-		stw t0, GSA(t1)
-		addi t0, zero, 4
-		addi t1, zero, 	112
-		stw t0, GSA(t1)
-		addi t0, zero, 4
-		addi t1, zero, 	116
-		stw t0, GSA(t1)
-		addi t0, zero, 3
-		addi t1, zero, 120 
-		stw t0, GSA(t1)
-		addi t0, zero, 3
-		addi t1, zero, 168  
-		stw t0, GSA(t1)
-
-		addi t0, zero, 3
-		addi t1, zero, 2
-		stw t0, TAIL_X(zero)
-		stw t1, TAIL_Y(zero)
-		addi t0, zero, 6
-		addi t1, zero, 3
-		stw t0, HEAD_X(zero)
-		stw t1, HEAD_Y(zero)
-		call clear_leds
-		call move_snake
-		call clear_leds
-		call draw_array
-		ret
+	; In production code, the return statement should never be reached!
+	ret
 
 ; BEGIN: clear_leds
 clear_leds:
@@ -213,7 +168,20 @@ init_game:
 
 ; BEGIN: create_food
 create_food:
+	addi sp, sp, -4
+	stw ra, 0(sp)
 
+
+	generate_food_position:
+		ldw t7, RANDOM_NUM(zero)
+		addi t0, zero, 11111111    ; Used to select only the first 256 numbers
+		addi t1, zero, 96        ; First invalid number (i.e not on LED screen)
+		bge t7, t1, generate_food_position
+		
+	
+
+	ldw ra, 0(sp)
+	addi sp, sp, 4
 ; END: create_food
 
 
@@ -434,8 +402,6 @@ move_snake:
 		ldw ra, 0(sp)
 		addi sp, sp, 4
 		ret
-
-	
 
 ; END: move_snake
 
