@@ -30,6 +30,7 @@
 .equ    BUTTON_CHECKPOINT,    5
 
 ; array state
+.equ    EMPTY,          0       ; empty cell (i.e no snake nor food)
 .equ    DIR_LEFT,       1       ; leftward direction
 .equ    DIR_UP,         2       ; upward direction
 .equ    DIR_DOWN,       3       ; downward direction
@@ -45,13 +46,24 @@
 .equ    ARG_HUNGRY,     0       ; a0 argument for move_snake when food wasn't eaten
 .equ    ARG_FED,        1       ; a0 argument for move_snake when food was eaten
 
+
+
+
 ; initialize stack pointer
 addi    sp, zero, STACK_BOTTOM
+
+
+debug:
+	addi t0, zero, 340
+	stw t0, SCORE(zero)
+	call display_score
 
 ; main
 ; arguments
 ;     none
 ;
+; return values
+;     This procedure should never return.
 ; return values
 ;     This procedure should never return.
 main:
@@ -100,77 +112,39 @@ increase_score:
    ; TODO: Finish this procedure.
 	;call clear_leds
 
+	ldw t0, RANDOM_NUM(zero)
+	ldw t1, RANDOM_NUM(zero)
+	ldw t2, RANDOM_NUM(zero)
+
 	br move_loop_test
 
 	move_loop_test:
 		stw zero, HEAD_X(zero)
+	game_loop_algorithm:
+		stw zero, HEAD_X(zero)   ; Setting the initial position of the snake
 		stw zero, HEAD_Y(zero)
 		stw zero, TAIL_X(zero)
 		stw zero, TAIL_Y(zero)		
 		addi t0, zero, 4
+		addi t0, zero, DIR_RIGHT
 		stw t0, GSA(zero)
 
 	move_loop:
 			
 			call clear_leds
+			call create_food
 			call get_input
 			call move_snake
 			call draw_array
 			br move_loop
+	
+    ; TODO: Finish this procedure.
+	;call clear_leds
+	game_test:
+			
 
-	draw_array_test:
-		addi t0, zero, 3
-		addi t1, zero, 0
-		stw t0, GSA(t1)
-		addi t0, zero, 2
-		addi t1, zero, 4
-		stw t0, GSA(t1)
-		addi t0, zero, 0
-		addi t1, zero, 8
-		stw t0, GSA(t1)
-		addi t0, zero, 4
-		addi t1, zero, 12
-		stw t0, GSA(t1)
-		addi t0, zero, 5
-		addi t1, zero, 16
-		stw t0, GSA(t1)
-		addi t0, zero, 3
-		addi t1, zero, 48
-		stw t0, GSA(t1)
-		call draw_array
-		call hit_test
-		ret
-
-	move_snake_test:
-		addi t0, zero, 4
-		addi t1, zero, 	108  ; (3,2) = 4*(3 + 2*12) = 108
-		stw t0, GSA(t1)
-		addi t0, zero, 4
-		addi t1, zero, 	112
-		stw t0, GSA(t1)
-		addi t0, zero, 4
-		addi t1, zero, 	116
-		stw t0, GSA(t1)
-		addi t0, zero, 3
-		addi t1, zero, 120 
-		stw t0, GSA(t1)
-		addi t0, zero, 3
-		addi t1, zero, 168  
-		stw t0, GSA(t1)
-
-		addi t0, zero, 3
-		addi t1, zero, 2
-		stw t0, TAIL_X(zero)
-		stw t1, TAIL_Y(zero)
-		addi t0, zero, 6
-		addi t1, zero, 3
-		stw t0, HEAD_X(zero)
-		stw t1, HEAD_Y(zero)
-		call clear_leds
-		call move_snake
-		call clear_leds
-		call draw_array
-		ret
+	
+	; In production code, the return statement should never be reached!
 
 ; BEGIN: clear_leds
 clear_leds:
@@ -244,6 +218,63 @@ set_pixel:
 
 ; BEGIN: display_score
 display_score:
+	; ---- Computing the 3rd decimal -----
+	ldw t1, SCORE(zero)
+	addi t2, zero, 1
+	blt t1, t7, second_became_zero
+	addi t2, zero, 0    ; The number of times we removed 1 in total
+	second_loop:
+		addi t1, t1, -100
+		addi t2, t2, 1
+		blt t1, zero, second_became_zero
+		br second_loop
+
+	second_became_zero:
+		addi t1, t1, 100
+		addi t2, t2, -1
+		slli t2, t2, 2
+		ldw t5, digit_map(t2)
+		addi t6, zero, 8
+		stw t5, SEVEN_SEGS(t6)
+
+	; ---- Computing the 2nd decimal -----
+	addi t2, zero, 1
+	blt t1, t7, third_became_zero
+	addi t2, zero, 0    ; The number of times we removed 1 in total
+	third_loop:
+		addi t1, t1, -10
+		addi t2, t2, 1
+		blt t1, zero, third_became_zero
+		br third_loop
+
+	third_became_zero:
+		addi t1, t1, 10
+		addi t2, t2, -1
+		slli t2, t2, 2
+		ldw t5, digit_map(t2)
+		addi t6, zero, 4
+		stw t5, SEVEN_SEGS(t6)
+
+	; ---- Computing the 1st material -----	
+	addi t2, zero, 1
+	beq t1, zero, first_became_zero
+	addi t2, zero, 0    ; The number of times we removed 1 in total
+	first_loop:
+		addi t1, t1, -1
+		addi t2, t2, 1
+		blt t1, zero, first_became_zero
+		br first_loop
+
+	first_became_zero:
+		addi t1, t1, 1
+		addi t2, t2, -1
+		slli t2, t2, 2
+		ldw t5, digit_map(t2)
+		addi t6, zero, 0
+		stw t5, SEVEN_SEGS(t6)
+		ret
+		
+
 
 ; END: display_score
 
@@ -283,7 +314,25 @@ loop: stw zero, 0(s0) ;is this loop really needed after GSA array initialization
 
 ; BEGIN: create_food
 create_food:
+	addi sp, sp, -4
+	stw ra, 0(sp)
 
+
+	generate_food_position:
+		ldw t7, RANDOM_NUM(zero)
+		addi t0, zero, 0b11111111    ; Used to select only the first 256 numbers
+		addi t1, zero, 96        ; First invalid number (i.e not on LED screen)
+		bge t7, t1, generate_food_position
+	
+		ldw t2, GSA(t1)
+		bne t2, zero, generate_food_position
+		addi t3, zero, FOOD
+		stw t3, GSA(t1)
+		
+	
+
+	ldw ra, 0(sp)
+	addi sp, sp, 4
 ; END: create_food
 
 
@@ -478,8 +527,7 @@ draw_array:
 	
 	
 	
-	
-; END: draw_array
+
 
 
 ; BEGIN: move_snake
@@ -504,13 +552,13 @@ move_snake:
 
 
 ;   2) Update head position
-	addi t3, zero, 1
+	addi t3, zero, DIR_LEFT
 	beq t3, t2, left_movement
-	addi t3, zero, 2
+	addi t3, zero, DIR_UP
 	beq t3, t2, up_movement
-	addi t3, zero, 3
+	addi t3, zero, DIR_DOWN
 	beq t3, t2, down_movement
-	addi t3, zero, 4
+	addi t3, zero, DIR_RIGHT
 	beq t3, t2, right_movement
 
 	left_movement:
@@ -542,8 +590,12 @@ move_snake:
 	stw t2, GSA(t4)
 	
 
+	; If food is eaten, then no need to move tail
+	addi t0, zero, 1
+	beq a0, t0, move_snake_return
 
 
+	; Find the tail movement vector
 	ldw t0, TAIL_X(zero)
 	ldw t1, TAIL_Y(zero)
 	add t2, t1, t1  ; Multiply y by 3
@@ -583,8 +635,6 @@ move_snake:
 		stw t1, TAIL_Y(zero)
 		br move_snake_return
 
-	final_update_tail:
-
 
 	move_snake_return:
 		ldw ra, 0(sp)
@@ -592,6 +642,14 @@ move_snake:
 		ret
 
 ; END: move_snake
+
+
+; BEING: blink_score
+blink_score:
+
+	ret
+
+; END: blink_score
 
 
 ; BEGIN: save_checkpoint
@@ -652,6 +710,7 @@ restore:
 ; END: restore_checkpoint
 
 
+<<<<<<< HEAD
 ; BEGIN: blink_score
 blink_score:
 	addi sp, sp, -4
@@ -687,3 +746,16 @@ wait:
         bne t0, zero, loop1
 ret
 ;END:wait
+=======
+digit_map:
+.word 0xFC ; 0
+.word 0x60 ; 1
+.word 0xDA ; 2
+.word 0xF2 ; 3
+.word 0x66 ; 4
+.word 0xB6 ; 5
+.word 0xBE ; 6
+.word 0xE0 ; 7
+.word 0xFE ; 8
+.word 0xF6 ; 9
+>>>>>>> db4126395c06ea47e18c85138c56f7327c552dd1
