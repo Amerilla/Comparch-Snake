@@ -55,8 +55,44 @@ addi    sp, zero, STACK_BOTTOM
 ; return values
 ;     This procedure should never return.
 main:
+	;initialization
+	addi s7, zero, BUTTON_CHECKPOINT
+	addi s6, zero, RET_ATE_FOOD	;=1
+	addi s5, zero, RET_COLLISION
+
 	stw zero, CP_VALID(zero)
-	
+
+initialize:	
+	call init_game
+gi:	call get_input
+	beq v0, s7,do_restore
+	call hit_test
+	beq v0, s6, increase_score
+	beq v0, s5, initialize
+	add a0, v0, zero
+	call move_snake
+clearance:
+	call clear_leds
+	call draw_array
+	br gi
+
+do_restore: call restore_checkpoint
+			beq v0, zero, gi
+blink:		call blink_score
+			br clearance
+
+increase_score:
+	ldw t0, SCORE(zero)
+	addi t0, t0, 1
+	stw t0, SCORE(zero)
+	call display_score
+	add a0, zero, RET_ATE_FOOD
+	call move_snake
+	call create_food
+	call save_checkpoint
+	beq v0, zero, clearance
+	br blink
+
 ;_________________________________
  	;ACTUAL MAIN PROCEDURE WRITTEN ABOVE! DO NOT ERASE!
    ; TODO: Finish this procedure.
@@ -212,7 +248,34 @@ display_score:
 
 ; BEGIN: init_game
 init_game:
+	addi sp, sp, -16	
+	stw ra, 0(sp)
+	stw s2, 4(sp)
+	stw s1, 8(sp)
+	stw s0, 12(sp)
 
+	addi s0, zero, HEAD_X
+	addi s1, zero, CP_VALID
+	addi s2, zero,DIR_RIGHT
+
+	call clear_leds
+	;stw zero, SCORE(zero)	
+
+loop: stw zero, 0(s0) ;is this loop really needed after GSA array initialization to 0?
+	addi s0, s0, 4		;maybe? Ask alain/alban/zyad
+	bne s0, s1, loop
+	
+	stw s2, GSA(zero)
+	call create_food
+	call draw_array
+	call display_score
+
+	ldw ra, 0(sp)
+	ldw s2, 4(sp)
+	ldw s1, 8(sp)
+	ldw s0, 12(sp)
+	addi sp, sp, 16
+	ret
 ; END: init_game
 
 
@@ -525,8 +588,6 @@ move_snake:
 		ldw ra, 0(sp)
 		addi sp, sp, 4
 		ret
-
-	
 
 ; END: move_snake
 
