@@ -46,8 +46,17 @@
 .equ    ARG_HUNGRY,     0       ; a0 argument for move_snake when food wasn't eaten
 .equ    ARG_FED,        1       ; a0 argument for move_snake when food was eaten
 
+
+
+
 ; initialize stack pointer
 addi    sp, zero, STACK_BOTTOM
+
+
+debug:
+	addi t0, zero, 340
+	stw t0, SCORE(zero)
+	call display_score
 
 ; main
 ; arguments
@@ -55,17 +64,70 @@ addi    sp, zero, STACK_BOTTOM
 ;
 ; return values
 ;     This procedure should never return.
+; return values
+;     This procedure should never return.
 main:
+	;initialization
+	addi s7, zero, BUTTON_CHECKPOINT
+	addi s6, zero, RET_ATE_FOOD	;=1
+	addi s5, zero, RET_COLLISION
 
+	stw zero, CP_VALID(zero)
+
+initialize:	
+	call init_game
+gi:	call get_input
+	beq v0, s7,do_restore
+	call hit_test
+	beq v0, s6, increase_score
+	beq v0, s5, initialize
+	add a0, v0, zero
+	call move_snake
+clearance:
+	call clear_leds
+	call draw_array
+	br gi
+
+do_restore: call restore_checkpoint
+			beq v0, zero, gi
+blink:		call blink_score
+			br clearance
+
+increase_score:
+	ldw t0, SCORE(zero)
+	addi t0, t0, 1
+	stw t0, SCORE(zero)
+	call display_score
+	addi a0, zero, RET_ATE_FOOD
+	call move_snake
+	call create_food
+	call save_checkpoint
+	beq v0, zero, clearance
+	br blink
+
+;_________________________________
+ 	;ACTUAL MAIN PROCEDURE WRITTEN ABOVE! DO NOT ERASE!
+   ; TODO: Finish this procedure.
+	;call clear_leds
+
+	ldw t0, RANDOM_NUM(zero)
+	ldw t1, RANDOM_NUM(zero)
+	ldw t2, RANDOM_NUM(zero)
+
+	br move_loop_test
+
+	move_loop_test:
+		stw zero, HEAD_X(zero)
 	game_loop_algorithm:
 		stw zero, HEAD_X(zero)   ; Setting the initial position of the snake
 		stw zero, HEAD_Y(zero)
 		stw zero, TAIL_X(zero)
 		stw zero, TAIL_Y(zero)		
+		addi t0, zero, 4
 		addi t0, zero, DIR_RIGHT
 		stw t0, GSA(zero)
 
-		move_loop:
+	move_loop:
 			
 			call clear_leds
 			call create_food
@@ -81,7 +143,6 @@ main:
 
 	
 	; In production code, the return statement should never be reached!
-	ret
 
 ; BEGIN: clear_leds
 clear_leds:
@@ -155,13 +216,97 @@ set_pixel:
 
 ; BEGIN: display_score
 display_score:
+	; ---- Computing the 3rd decimal -----
+	ldw t1, SCORE(zero)
+	addi t2, zero, 1
+	blt t1, t7, second_became_zero
+	addi t2, zero, 0    ; The number of times we removed 1 in total
+	second_loop:
+		addi t1, t1, -100
+		addi t2, t2, 1
+		blt t1, zero, second_became_zero
+		br second_loop
+
+	second_became_zero:
+		addi t1, t1, 100
+		addi t2, t2, -1
+		slli t2, t2, 2
+		ldw t5, digit_map(t2)
+		addi t6, zero, 8
+		stw t5, SEVEN_SEGS(t6)
+
+	; ---- Computing the 2nd decimal -----
+	addi t2, zero, 1
+	blt t1, t7, third_became_zero
+	addi t2, zero, 0    ; The number of times we removed 1 in total
+	third_loop:
+		addi t1, t1, -10
+		addi t2, t2, 1
+		blt t1, zero, third_became_zero
+		br third_loop
+
+	third_became_zero:
+		addi t1, t1, 10
+		addi t2, t2, -1
+		slli t2, t2, 2
+		ldw t5, digit_map(t2)
+		addi t6, zero, 4
+		stw t5, SEVEN_SEGS(t6)
+
+	; ---- Computing the 1st material -----	
+	addi t2, zero, 1
+	beq t1, zero, first_became_zero
+	addi t2, zero, 0    ; The number of times we removed 1 in total
+	first_loop:
+		addi t1, t1, -1
+		addi t2, t2, 1
+		blt t1, zero, first_became_zero
+		br first_loop
+
+	first_became_zero:
+		addi t1, t1, 1
+		addi t2, t2, -1
+		slli t2, t2, 2
+		ldw t5, digit_map(t2)
+		addi t6, zero, 0
+		stw t5, SEVEN_SEGS(t6)
+		ret
+		
+
 
 ; END: display_score
 
 
 ; BEGIN: init_game
 init_game:
+	addi sp, sp, -16	
+	stw ra, 0(sp)
+	stw s2, 4(sp)
+	stw s1, 8(sp)
+	stw s0, 12(sp)
 
+	addi s0, zero, HEAD_X
+	addi s1, zero, CP_VALID
+	addi s2, zero,DIR_RIGHT
+
+	call clear_leds
+	;stw zero, SCORE(zero)	
+
+loop: stw zero, 0(s0) ;is this loop really needed after GSA array initialization to 0?
+	addi s0, s0, 4		;maybe? Ask alain/alban/zyad
+	bne s0, s1, loop
+	
+	stw s2, GSA(zero)
+	call create_food
+	call draw_array
+	call display_score
+
+	ldw ra, 0(sp)
+	ldw s2, 4(sp)
+	ldw s1, 8(sp)
+	ldw s0, 12(sp)
+	addi sp, sp, 16
+	ret
 ; END: init_game
 
 
@@ -191,6 +336,92 @@ create_food:
 
 ; BEGIN: hit_test
 hit_test:
+	addi t3, zero, -1
+	addi t7, zero, DIR_LEFT
+	addi t6, zero, DIR_RIGHT
+	addi t5, zero, DIR_UP
+	addi t4, zero, DIR_DOWN
+	
+	ldw t0, HEAD_X(zero)
+	ldw t1, HEAD_Y(zero)
+	add t2, t1, t1
+	add t2, t2, t1
+	slli t2, t2, 2
+	add t2, t2, t0
+	slli t2, t2,2 
+	ldw t2, GSA(t2)
+	
+	beq t2, t7, left
+	beq t2, t6, right
+	beq t2, t5, up
+	beq t2, t4, down
+
+left:
+	addi t0, t0, -1
+	beq t3, t0, wall
+	
+	add t2, t1, t1
+	add t2, t2, t1
+	slli t2, t2, 2
+	add t2, t2, t0
+	slli t2, t2,2 
+	ldw t2, GSA(t2)	;getting the gsa of the new pos, NEXT: Testing
+	br testing	
+
+right:
+	addi t0, t0, 1
+	addi t3, zero, 12  ;right limit
+	beq t3, t0, wall
+	
+	add t2, t1, t1
+	add t2, t2, t1
+	slli t2, t2, 2
+	add t2, t2, t0
+	slli t2, t2,2 
+	ldw t2, GSA(t2)
+	br testing
+
+up:
+	addi t1, t1, -1
+	beq t3, t1, wall
+	
+	add t2, t1, t1
+	add t2, t2, t1
+	slli t2, t2, 2
+	add t2, t2, t0
+	slli t2, t2,2 
+	ldw t2, GSA(t2) 
+	br testing
+	
+down:
+	addi t1, t1, 1
+	addi t3, zero, 8 ;down limit 
+	beq t3, t1, wall
+	
+	add t2, t1, t1
+	add t2, t2, t1
+	slli t2, t2, 2
+	add t2, t2, t0
+	slli t2, t2,2 
+	ldw t2, GSA(t2) 
+	
+testing:
+	addi t3, zero, FOOD
+
+	beq t2, t7, wall
+	beq t2, t6, wall
+	beq t2, t5, wall
+	beq t2, t4, wall
+	beq t2, t3, food
+	
+	add v0, zero, zero	;do nothing
+	ret
+
+wall: addi v0, zero, RET_COLLISION
+	ret
+
+food: addi v0, zero, RET_ATE_FOOD
+	ret
 
 ; END: hit_test
 
@@ -294,8 +525,7 @@ draw_array:
 	
 	
 	
-	
-; END: draw_array
+
 
 
 ; BEGIN: move_snake
@@ -412,19 +642,80 @@ move_snake:
 ; END: move_snake
 
 
+; BEING: blink_score
+blink_score:
+
+	ret
+
+; END: blink_score
+
+
 ; BEGIN: save_checkpoint
 save_checkpoint:
+	addi t7, zero, HEAD_X ;needs to go from here to 
+	addi t6, zero, SEVEN_SEGS ;stop when this address strikes
+	addi t5, zero, CP_HEAD_X
+	addi t4, zero, RET_ATE_FOOD ;t4 = 1 
+	 
+	ldw t0, SCORE(zero)
+ 	addi t1, zero, 10
+	bge t0, zero, next
+	ret
+
+next:
+	beq t0, zero, incr
+	blt t0, zero, end
+	addi t0, t0, -10
+	br next
+
+incr: 
+	ldw t2, 0(t7)
+	stw t2, 0(t5)
+	addi t7, t7, 4
+	addi t5, t5, 4 
+	bne t7, t6, incr
+	stw t4,CP_VALID(zero)
+	add v0, zero, t4
+	ret 
+
+end: add v0, zero, zero
+	ret
 
 ; END: save_checkpoint
 
 
 ; BEGIN: restore_checkpoint
 restore_checkpoint:
+	addi t7, zero, HEAD_X ;needs to go from here to 
+	addi t6, zero, SEVEN_SEGS ;stop when this address strikes
+	addi t5, zero, CP_HEAD_X
+	addi t4, zero, RET_ATE_FOOD ;t4 = 1 
 
+	ldw t0, CP_VALID(zero)
+	beq t0, t4, restore
+	add v0, zero, zero
+	ret
+
+restore: 
+	ldw t1, 0(t5)
+	stw t1, 0(t7)
+	addi t7, t7, 4
+	addi t5, t5, 4 
+	bne t7, t6, restore
+	add v0, zero, t4
+	ret
+	
 ; END: restore_checkpoint
 
 
-; BEGIN: blink_score
-blink_score:
-
-; END: blink_score
+digit_map:
+.word 0xFC ; 0
+.word 0x60 ; 1
+.word 0xDA ; 2
+.word 0xF2 ; 3
+.word 0x66 ; 4
+.word 0xB6 ; 5
+.word 0xBE ; 6
+.word 0xE0 ; 7
+.word 0xFE ; 8
+.word 0xF6 ; 9
