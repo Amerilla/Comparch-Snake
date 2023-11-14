@@ -86,7 +86,7 @@ increase_score:
 	addi t0, t0, 1
 	stw t0, SCORE(zero)
 	call display_score
-	add a0, zero, RET_ATE_FOOD
+	addi a0, zero, RET_ATE_FOOD
 	call move_snake
 	call create_food
 	call save_checkpoint
