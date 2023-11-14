@@ -64,7 +64,9 @@ main:
 
 initialize:	
 	call init_game
-gi:	call get_input
+
+gi:	call wait
+	call get_input
 	beq v0, s7,do_restore
 	call hit_test
 	beq v0, s6, increase_score
@@ -255,14 +257,14 @@ init_game:
 	stw s0, 12(sp)
 
 	addi s0, zero, HEAD_X
-	addi s1, zero, CP_VALID
+	addi s1, zero, SEVEN_SEGS
 	addi s2, zero,DIR_RIGHT
 
 	call clear_leds
-	;stw zero, SCORE(zero)	
+	;stw zero, SCORE(zero)	 no need, done inside loop!
 
 loop: stw zero, 0(s0) ;is this loop really needed after GSA array initialization to 0?
-	addi s0, s0, 4		;maybe? Ask alain/alban/zyad
+	addi s0, s0, 4		;maybe? Ask...
 	bne s0, s1, loop
 	
 	stw s2, GSA(zero)
@@ -652,5 +654,36 @@ restore:
 
 ; BEGIN: blink_score
 blink_score:
+	addi sp, sp, -4
+	ldw ra, 0(sp)
+	
+; first clear display->wait->call display->wait (blink once)
+ 	addi t0, zero, 4
+	stw zero, SEVEN_SEGS(zero)
+	stw zero, SEVEN_SEGS(t0)
+	addi t0, t0, 4
+	stw zero, SEVEN_SEGS(t0)
+	addi t0, t0, 4
+	stw zero, SEVEN_SEGS(t0)
 
+	call wait
+
+	call display_score
+
+	call wait
+	
+	stw ra, 0(sp)
+	addi sp, sp, 4 
 ; END: blink_score
+
+; BEGIN:wait
+wait:
+    addi t0, zero, 1
+    addi t1, zero, 1
+    slli t0, t0, 22
+    
+    loop1:
+        sub t0, t0, t1
+        bne t0, zero, loop1
+ret
+;END:wait
