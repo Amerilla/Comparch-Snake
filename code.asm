@@ -30,6 +30,7 @@
 .equ    BUTTON_CHECKPOINT,    5
 
 ; array state
+.equ    EMPTY,          0       ; empty cell (i.e no snake nor food)
 .equ    DIR_LEFT,       1       ; leftward direction
 .equ    DIR_UP,         2       ; upward direction
 .equ    DIR_DOWN,       3       ; downward direction
@@ -55,70 +56,28 @@ addi    sp, zero, STACK_BOTTOM
 ; return values
 ;     This procedure should never return.
 main:
-	;initialization
-	addi s7, zero, BUTTON_CHECKPOINT
-	addi s6, zero, RET_ATE_FOOD	;=1
-	addi s5, zero, RET_COLLISION
 
-	stw zero, CP_VALID(zero)
-
-initialize:	
-	call init_game
-gi:	call get_input
-	beq v0, s7,do_restore
-	call hit_test
-	beq v0, s6, increase_score
-	beq v0, s5, initialize
-	add a0, v0, zero
-	call move_snake
-clearance:
-	call clear_leds
-	call draw_array
-	br gi
-
-do_restore: call restore_checkpoint
-			beq v0, zero, gi
-blink:		call blink_score
-			br clearance
-
-increase_score:
-	ldw t0, SCORE(zero)
-	addi t0, t0, 1
-	stw t0, SCORE(zero)
-	call display_score
-	addi a0, zero, RET_ATE_FOOD
-	call move_snake
-	call create_food
-	call save_checkpoint
-	beq v0, zero, clearance
-	br blink
-
-;_________________________________
- 	;ACTUAL MAIN PROCEDURE WRITTEN ABOVE! DO NOT ERASE!
-   ; TODO: Finish this procedure.
-	;call clear_leds
-
-	ldw t0, RANDOM_NUM(zero)
-	ldw t1, RANDOM_NUM(zero)
-	ldw t2, RANDOM_NUM(zero)
-
-	br move_loop_test
-
-	move_loop_test:
-		stw zero, HEAD_X(zero)
+	game_loop_algorithm:
+		stw zero, HEAD_X(zero)   ; Setting the initial position of the snake
 		stw zero, HEAD_Y(zero)
 		stw zero, TAIL_X(zero)
 		stw zero, TAIL_Y(zero)		
-		addi t0, zero, 4
+		addi t0, zero, DIR_RIGHT
 		stw t0, GSA(zero)
 
-	move_loop:
+		move_loop:
 			
 			call clear_leds
+			call create_food
 			call get_input
 			call move_snake
 			call draw_array
 			br move_loop
+	
+    ; TODO: Finish this procedure.
+	;call clear_leds
+	game_test:
+			
 
 	
 	; In production code, the return statement should never be reached!
@@ -202,34 +161,7 @@ display_score:
 
 ; BEGIN: init_game
 init_game:
-	addi sp, sp, -16	
-	stw ra, 0(sp)
-	stw s2, 4(sp)
-	stw s1, 8(sp)
-	stw s0, 12(sp)
 
-	addi s0, zero, HEAD_X
-	addi s1, zero, CP_VALID
-	addi s2, zero,DIR_RIGHT
-
-	call clear_leds
-	;stw zero, SCORE(zero)	
-
-loop: stw zero, 0(s0) ;is this loop really needed after GSA array initialization to 0?
-	addi s0, s0, 4		;maybe? Ask alain/alban/zyad
-	bne s0, s1, loop
-	
-	stw s2, GSA(zero)
-	call create_food
-	call draw_array
-	call display_score
-
-	ldw ra, 0(sp)
-	ldw s2, 4(sp)
-	ldw s1, 8(sp)
-	ldw s0, 12(sp)
-	addi sp, sp, 16
-	ret
 ; END: init_game
 
 
@@ -241,9 +173,14 @@ create_food:
 
 	generate_food_position:
 		ldw t7, RANDOM_NUM(zero)
-		addi t0, zero, 11111111    ; Used to select only the first 256 numbers
+		addi t0, zero, 0b11111111    ; Used to select only the first 256 numbers
 		addi t1, zero, 96        ; First invalid number (i.e not on LED screen)
 		bge t7, t1, generate_food_position
+	
+		ldw t2, GSA(t1)
+		bne t2, zero, generate_food_position
+		addi t3, zero, FOOD
+		stw t3, GSA(t1)
 		
 	
 
@@ -254,92 +191,6 @@ create_food:
 
 ; BEGIN: hit_test
 hit_test:
-	addi t3, zero, -1
-	addi t7, zero, DIR_LEFT
-	addi t6, zero, DIR_RIGHT
-	addi t5, zero, DIR_UP
-	addi t4, zero, DIR_DOWN
-	
-	ldw t0, HEAD_X(zero)
-	ldw t1, HEAD_Y(zero)
-	add t2, t1, t1
-	add t2, t2, t1
-	slli t2, t2, 2
-	add t2, t2, t0
-	slli t2, t2,2 
-	ldw t2, GSA(t2)
-	
-	beq t2, t7, left
-	beq t2, t6, right
-	beq t2, t5, up
-	beq t2, t4, down
-
-left:
-	addi t0, t0, -1
-	beq t3, t0, wall
-	
-	add t2, t1, t1
-	add t2, t2, t1
-	slli t2, t2, 2
-	add t2, t2, t0
-	slli t2, t2,2 
-	ldw t2, GSA(t2)	;getting the gsa of the new pos, NEXT: Testing
-	br testing	
-
-right:
-	addi t0, t0, 1
-	addi t3, zero, 12  ;right limit
-	beq t3, t0, wall
-	
-	add t2, t1, t1
-	add t2, t2, t1
-	slli t2, t2, 2
-	add t2, t2, t0
-	slli t2, t2,2 
-	ldw t2, GSA(t2)
-	br testing
-
-up:
-	addi t1, t1, -1
-	beq t3, t1, wall
-	
-	add t2, t1, t1
-	add t2, t2, t1
-	slli t2, t2, 2
-	add t2, t2, t0
-	slli t2, t2,2 
-	ldw t2, GSA(t2) 
-	br testing
-	
-down:
-	addi t1, t1, 1
-	addi t3, zero, 8 ;down limit 
-	beq t3, t1, wall
-	
-	add t2, t1, t1
-	add t2, t2, t1
-	slli t2, t2, 2
-	add t2, t2, t0
-	slli t2, t2,2 
-	ldw t2, GSA(t2) 
-	
-testing:
-	addi t3, zero, FOOD
-
-	beq t2, t7, wall
-	beq t2, t6, wall
-	beq t2, t5, wall
-	beq t2, t4, wall
-	beq t2, t3, food
-	
-	add v0, zero, zero	;do nothing
-	ret
-
-wall: addi v0, zero, RET_COLLISION
-	ret
-
-food: addi v0, zero, RET_ATE_FOOD
-	ret
 
 ; END: hit_test
 
@@ -469,13 +320,13 @@ move_snake:
 
 
 ;   2) Update head position
-	addi t3, zero, 1
+	addi t3, zero, DIR_LEFT
 	beq t3, t2, left_movement
-	addi t3, zero, 2
+	addi t3, zero, DIR_UP
 	beq t3, t2, up_movement
-	addi t3, zero, 3
+	addi t3, zero, DIR_DOWN
 	beq t3, t2, down_movement
-	addi t3, zero, 4
+	addi t3, zero, DIR_RIGHT
 	beq t3, t2, right_movement
 
 	left_movement:
@@ -507,8 +358,12 @@ move_snake:
 	stw t2, GSA(t4)
 	
 
+	; If food is eaten, then no need to move tail
+	addi t0, zero, 1
+	beq a0, t0, move_snake_return
 
 
+	; Find the tail movement vector
 	ldw t0, TAIL_X(zero)
 	ldw t1, TAIL_Y(zero)
 	add t2, t1, t1  ; Multiply y by 3
@@ -548,8 +403,6 @@ move_snake:
 		stw t1, TAIL_Y(zero)
 		br move_snake_return
 
-	final_update_tail:
-
 
 	move_snake_return:
 		ldw ra, 0(sp)
@@ -561,59 +414,13 @@ move_snake:
 
 ; BEGIN: save_checkpoint
 save_checkpoint:
-	addi t7, zero, HEAD_X ;needs to go from here to 
-	addi t6, zero, SEVEN_SEGS ;stop when this address strikes
-	addi t5, zero, CP_HEAD_X
-	addi t4, zero, RET_ATE_FOOD ;t4 = 1 
-	 
-	ldw t0, SCORE(zero)
- 	addi t1, zero, 10
-	bge t0, zero, next
-	ret
-
-next:
-	beq t0, zero, incr
-	blt t0, zero, end
-	addi t0, t0, -10
-	br next
-
-incr: 
-	ldw t2, 0(t7)
-	stw t2, 0(t5)
-	addi t7, t7, 4
-	addi t5, t5, 4 
-	bne t7, t6, incr
-	stw t4,CP_VALID(zero)
-	add v0, zero, t4
-	ret 
-
-end: add v0, zero, zero
-	ret
 
 ; END: save_checkpoint
 
 
 ; BEGIN: restore_checkpoint
 restore_checkpoint:
-	addi t7, zero, HEAD_X ;needs to go from here to 
-	addi t6, zero, SEVEN_SEGS ;stop when this address strikes
-	addi t5, zero, CP_HEAD_X
-	addi t4, zero, RET_ATE_FOOD ;t4 = 1 
 
-	ldw t0, CP_VALID(zero)
-	beq t0, t4, restore
-	add v0, zero, zero
-	ret
-
-restore: 
-	ldw t1, 0(t5)
-	stw t1, 0(t7)
-	addi t7, t7, 4
-	addi t5, t5, 4 
-	bne t7, t6, restore
-	add v0, zero, t4
-	ret
-	
 ; END: restore_checkpoint
 
 
